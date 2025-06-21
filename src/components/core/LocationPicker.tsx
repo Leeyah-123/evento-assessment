@@ -2,652 +2,355 @@
 
 import { Loader } from '@googlemaps/js-api-loader';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { MapPin, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { z } from 'zod';
 
-// Import from relative paths to match project structure
-import { Button } from '../ui/button';
+// Import base components
+import { LocationManualEntryForm } from '../base/LocationManualEntryForm';
+import { LocationMap } from '../base/LocationMap';
+import { LocationSearchInput } from '../base/LocationSearchInput';
+import { LocationSuggestionsList } from '../base/LocationSuggestionsList';
+import { SelectedLocationDisplay } from '../base/SelectedLocationDisplay';
+
+// Import UI components
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+
+// Import hooks
+import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/config';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '../ui/dialog';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '../ui/form';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-
-// For Google Maps types
-declare global {
-  interface Window {
-    google: any;
-  }
-}
-
-// Constants
-const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-const GOOGLE_MAPS_LIBRARIES = ['places'];
-
-// Define schema for location form
-const locationSchema = z.object({
-  placeId: z.string().optional(),
-  name: z.string().optional(),
-  streetAddress: z.string().optional(),
-  city: z.string().optional(),
-  region: z.string().optional(),
-  country: z.string().min(1, 'Country is required'),
-  postalCode: z.string().optional(),
-  latitude: z.number().optional().nullable(),
-  longitude: z.number().optional().nullable(),
-  isManuallyEntered: z.boolean().default(true),
-  formattedAddress: z.string().optional(),
-});
-
-type LocationFormValues = z.infer<typeof locationSchema>;
-
-// Debounce hook
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-}
+  LocationFormValues,
+  LocationManualFormValues,
+  locationSchema,
+} from '@/lib/schemas/location-schema';
+import useDebounce from '../../hooks/useDebounce';
 
 interface PlacePrediction {
   place_id: string;
   description: string;
-  structured_formatting: {
+  structured_formatting?: {
     main_text: string;
     secondary_text: string;
   };
 }
 
+export interface Location extends LocationFormValues {
+  placeId?: string;
+  formattedAddress?: string | null;
+}
+
 interface LocationPickerProps {
-  onLocationSelect?: (location: LocationFormValues) => void;
-  initialValue?: LocationFormValues;
+  initialLocation?: Location;
+  onLocationSelect?: (location: Location) => void;
 }
 
 export default function LocationPicker({
+  initialLocation,
   onLocationSelect,
-  initialValue,
 }: LocationPickerProps) {
-  // Form and UI state
   const [searchQuery, setSearchQuery] = useState('');
-  const [placePredictions, setPlacePredictions] = useState<PlacePrediction[]>(
-    []
-  );
+  const [suggestions, setSuggestions] = useState<PlacePrediction[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [googleMapsLoaded, setGoogleMapsLoaded] = useState(false);
-  const [googleMapsError, setGoogleMapsError] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
-  const [mapInstance, setMapInstance] = useState<any>(null);
-  const [marker, setMarker] = useState<any>(null);
-  const [manualDialog, setManualDialog] = useState(false);
+  const [isError, setIsError] = useState(false);
 
-  // Initialize form with react-hook-form
   const form = useForm<LocationFormValues>({
-    resolver: zodResolver(locationSchema) as any,
-    defaultValues: initialValue || {
-      placeId: '',
+    resolver: zodResolver(locationSchema),
+    defaultValues: initialLocation || {
+      placeId: undefined,
       name: '',
       streetAddress: '',
       city: '',
       region: '',
       country: '',
       postalCode: '',
+      formattedAddress: '',
       latitude: null,
       longitude: null,
-      isManuallyEntered: true,
-      formattedAddress: '',
     },
   });
 
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
-  // Load Google Maps API
+  // Initialize Google Maps API
   useEffect(() => {
     if (!GOOGLE_MAPS_API_KEY) {
-      console.error('Google Maps API key not provided');
-      setGoogleMapsError(true);
+      console.error('Google Maps API key not set');
+      setIsError(true);
       return;
     }
 
     const loader = new Loader({
       apiKey: GOOGLE_MAPS_API_KEY,
       version: 'weekly',
-      libraries: GOOGLE_MAPS_LIBRARIES as any[],
+      libraries: GOOGLE_MAPS_LIBRARIES,
     });
 
     loader
-      .load()
-      .then(() => {
-        setGoogleMapsLoaded(true);
-        console.log('Google Maps API loaded successfully');
-      })
+      .importLibrary('places')
+      .then(() => setGoogleMapsLoaded(true))
       .catch((error) => {
         console.error('Error loading Google Maps API:', error);
-        setGoogleMapsError(true);
+        setIsError(true);
       });
   }, []);
 
-  // Create a ref for the map container element
-  const mapContainerRef = useRef<HTMLDivElement | null>(null);
-
-  // Initialize map when Google Maps API is loaded
+  // Search for places when the debounced search query changes
   useEffect(() => {
-    if (!mapContainerRef.current || !googleMapsLoaded || !window.google) return;
-
-    const map = new window.google.maps.Map(mapContainerRef.current, {
-      center: { lat: 0, lng: 0 },
-      zoom: 2,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: false,
-    });
-
-    setMapInstance(map);
-
-    // Get location from form values
-    const formValues = form.getValues();
-    if (formValues.latitude && formValues.longitude) {
-      const position = {
-        lat: formValues.latitude,
-        lng: formValues.longitude,
-      };
-
-      map.setCenter(position);
-      map.setZoom(16);
-
-      const newMarker = new window.google.maps.Marker({
-        position,
-        map,
-        title: formValues.name || formValues.formattedAddress,
-      });
-
-      setMarker(newMarker);
+    if (!debouncedSearchQuery.trim() || !googleMapsLoaded) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
     }
 
-    // Clean up marker when component unmounts
-    return () => {
-      if (marker) {
-        marker.setMap(null);
-      }
-    };
-  }, [googleMapsLoaded, form]);
-
-  // Handle search for places
-  useEffect(() => {
-    const searchPlaces = async () => {
-      if (
-        !debouncedSearchQuery ||
-        debouncedSearchQuery.length < 3 ||
-        !googleMapsLoaded
-      ) {
-        setPlacePredictions([]);
-        return;
-      }
-
-      setIsLoading(true);
-      try {
-        const response = await fetch(
-          `/api/places/search?q=${encodeURIComponent(debouncedSearchQuery)}`
-        );
-        const data = await response.json();
-
+    setIsLoading(true);
+    fetch(`/api/places/search?q=${encodeURIComponent(debouncedSearchQuery)}`)
+      .then((res) => res.json())
+      .then((data) => {
         if (data.predictions) {
-          setPlacePredictions(data.predictions);
+          setSuggestions(data.predictions);
+          setShowSuggestions(true);
+        } else {
+          setSuggestions([]);
         }
-      } catch (error) {
-        console.error('Error searching for places:', error);
-      } finally {
+      })
+      .catch((error) => {
+        console.error('Error fetching place suggestions:', error);
+        setSuggestions([]);
+      })
+      .finally(() => {
         setIsLoading(false);
-      }
-    };
-
-    searchPlaces();
+      });
   }, [debouncedSearchQuery, googleMapsLoaded]);
 
-  // Handle place selection
-  const handlePlaceSelect = async (placeId: string) => {
+  // Handle selection of a place from the suggestions
+  const handleSelectPlace = async (placeId: string) => {
+    if (!placeId) return;
+
+    setShowSuggestions(false);
     setIsLoading(true);
+
     try {
-      const response = await fetch('/api/locations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ placeId }),
-      });
+      const response = await fetch(`/api/places/details?place_id=${placeId}`);
+      const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(`API responded with status: ${response.status}`);
-      }
-
-      const locationData = await response.json();
-
-      // Update form with location data
-      form.reset(locationData);
-
-      // Update map marker
-      if (mapInstance && locationData.latitude && locationData.longitude) {
-        const position = {
-          lat: locationData.latitude,
-          lng: locationData.longitude,
+      if (data) {
+        const place = data;
+        const location = {
+          place_id: place.place_id,
+          name: place.name || null,
+          streetAddress:
+            place.address_components?.find((c: any) =>
+              c.types.includes('street_number')
+            )?.long_name || null,
+          city:
+            place.address_components?.find((c: any) =>
+              c.types.includes('locality')
+            )?.long_name || null,
+          region:
+            place.address_components?.find((c: any) =>
+              c.types.includes('administrative_area_level_1')
+            )?.long_name || null,
+          country:
+            place.address_components?.find((c: any) =>
+              c.types.includes('country')
+            )?.long_name || '',
+          postalCode:
+            place.address_components?.find((c: any) =>
+              c.types.includes('postal_code')
+            )?.long_name || null,
+          formattedAddress: place.formatted_address || null,
+          latitude: place.geometry?.location.lat || null,
+          longitude: place.geometry?.location.lng || null,
         };
 
-        mapInstance.setCenter(position);
-        mapInstance.setZoom(16);
+        form.reset(location);
+        setSearchQuery('');
 
-        if (marker) {
-          marker.setMap(null);
+        if (onLocationSelect) {
+          onLocationSelect(location);
         }
-
-        const newMarker = new window.google.maps.Marker({
-          position,
-          map: mapInstance,
-          title: locationData.name || locationData.formattedAddress,
-        });
-
-        setMarker(newMarker);
-      }
-
-      // Clear search
-      setSearchQuery('');
-      setPlacePredictions([]);
-
-      // Notify parent component
-      if (onLocationSelect) {
-        onLocationSelect(locationData);
       }
     } catch (error) {
       console.error('Error fetching place details:', error);
-      form.setError('root', { message: 'Failed to fetch place details' });
+      setIsError(true);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Handle form submission for manual entry
-  const onSubmitManualEntry = async (data: LocationFormValues) => {
-    setIsLoading(true);
-    try {
-      const locationData = {
-        ...data,
-        isManuallyEntered: true,
-      };
+  // Handle manual entry form submission
+  const handleManualEntrySubmit = (data: LocationManualFormValues) => {
+    // Create a formatted address from the form data
+    const addressParts = [
+      data.streetAddress,
+      data.city,
+      data.region,
+      data.postalCode,
+      data.country,
+    ].filter(Boolean);
 
-      const response = await fetch('/api/locations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(locationData),
-      });
+    const formattedAddress = addressParts.join(', ');
+
+    const location: Location = {
+      ...data,
+      formattedAddress: formattedAddress || null,
+    };
+
+    form.reset(location);
+    setShowManualEntry(false);
+    setSearchQuery(formattedAddress || '');
+
+    if (onLocationSelect) {
+      onLocationSelect(location);
+    }
+  };
+
+  // Handle map click to select location
+  const handleMapLocationSelect = async (lat: number, lng: number) => {
+    setIsLoading(true);
+
+    try {
+      // Call reverse geocoding API
+      const response = await fetch(`/api/places/geocode?lat=${lat}&lng=${lng}`);
 
       if (!response.ok) {
         throw new Error(`API responded with status: ${response.status}`);
       }
 
-      const createdLocation = await response.json();
-
-      // Update form with created location
-      form.reset(createdLocation);
-
-      // Update map if coordinates are available
-      if (
-        mapInstance &&
-        createdLocation.latitude &&
-        createdLocation.longitude
-      ) {
-        const position = {
-          lat: createdLocation.latitude,
-          lng: createdLocation.longitude,
-        };
-
-        mapInstance.setCenter(position);
-        mapInstance.setZoom(16);
-
-        if (marker) {
-          marker.setMap(null);
-        }
-
-        const newMarker = new window.google.maps.Marker({
-          position,
-          map: mapInstance,
-          title:
-            createdLocation.name ||
-            `${createdLocation.city}, ${createdLocation.country}`,
-        });
-
-        setMarker(newMarker);
+      const place = await response.json();
+      if (!place) {
+        throw new Error('No results found for the given coordinates');
       }
 
-      // Close dialog
-      setManualDialog(false);
+      const location = {
+        placeId: undefined,
+        name: place.name || null,
+        streetAddress:
+          place.address_components?.find((c: any) =>
+            c.types.includes('street_number')
+          )?.long_name || null,
+        city:
+          place.address_components?.find((c: any) =>
+            c.types.includes('locality')
+          )?.long_name || null,
+        region:
+          place.address_components?.find((c: any) =>
+            c.types.includes('administrative_area_level_1')
+          )?.long_name || null,
+        country:
+          place.address_components?.find((c: any) =>
+            c.types.includes('country')
+          )?.long_name || '',
+        postalCode:
+          place.address_components?.find((c: any) =>
+            c.types.includes('postal_code')
+          )?.long_name || null,
+        formattedAddress: place.formatted_address || null,
+        latitude: lat,
+        longitude: lng,
+      };
 
-      // Notify parent component
+      form.reset(location);
+      setSearchQuery('');
+
       if (onLocationSelect) {
-        onLocationSelect(createdLocation);
+        onLocationSelect(location);
       }
     } catch (error) {
-      console.error('Error creating location:', error);
-      form.setError('root', { message: 'Failed to create location' });
+      console.error('Error in reverse geocoding:', error);
+      setIsError(true);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Render location picker UI
-  return (
-    <div className="flex flex-col">
-      {/* Main location field with search/select */}
-      <div className="relative w-full">
-        <div className="w-full flex items-center gap-2">
-          <div className="flex-1">
-            <Label htmlFor="location-search">Location</Label>
-            <div className="relative">
-              <Input
-                id="location-search"
-                placeholder="Search for a location..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                autoComplete="off"
-                className="w-full"
-                disabled={isLoading}
-              />
-              {isLoading && (
-                <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
-                  <div className="animate-spin h-4 w-4 border-t-2 border-primary rounded-full" />
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="mt-6">
-            <Dialog open={manualDialog} onOpenChange={setManualDialog}>
-              <DialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  type="button"
-                  onClick={() => setManualDialog(true)}
-                >
-                  Manual Entry
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[550px]">
-                <DialogHeader>
-                  <DialogTitle>Enter Location Details Manually</DialogTitle>
-                </DialogHeader>
-                <Form {...form}>
-                  <form
-                    onSubmit={form.handleSubmit(onSubmitManualEntry)}
-                    className="space-y-4"
-                  >
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Location Name</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Building or Business Name"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="streetAddress"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Street Address</FormLabel>
-                          <FormControl>
-                            <Input placeholder="123 Main St" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className="grid grid-cols-2 gap-3">
-                      <FormField
-                        control={form.control}
-                        name="city"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>City</FormLabel>
-                            <FormControl>
-                              <Input placeholder="City" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="region"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Region/State</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Region or State" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <FormField
-                        control={form.control}
-                        name="country"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Country *</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Country"
-                                required
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="postalCode"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Postal Code</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Postal Code" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <FormField
-                        control={form.control}
-                        name="latitude"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Latitude</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                step="0.0000001"
-                                placeholder="Latitude"
-                                value={field.value?.toString() || ''}
-                                onChange={(e) =>
-                                  field.onChange(
-                                    e.target.value === ''
-                                      ? null
-                                      : parseFloat(e.target.value)
-                                  )
-                                }
-                                onBlur={field.onBlur}
-                                name={field.name}
-                                ref={field.ref}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="longitude"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Longitude</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                step="0.0000001"
-                                placeholder="Longitude"
-                                value={field.value?.toString() || ''}
-                                onChange={(e) =>
-                                  field.onChange(
-                                    e.target.value === ''
-                                      ? null
-                                      : parseFloat(e.target.value)
-                                  )
-                                }
-                                onBlur={field.onBlur}
-                                name={field.name}
-                                ref={field.ref}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setManualDialog(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button type="submit" disabled={isLoading}>
-                        {isLoading ? (
-                          <div className="flex items-center">
-                            <div className="animate-spin h-4 w-4 mr-2 border-t-2 border-white rounded-full" />
-                            Saving...
-                          </div>
-                        ) : (
-                          'Save Location'
-                        )}
-                      </Button>
-                    </div>
-                  </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </div>
+  // Handle clearing the selected location
+  const handleClearLocation = () => {
+    form.reset({
+      placeId: undefined,
+      name: '',
+      streetAddress: '',
+      city: '',
+      region: '',
+      country: '',
+      postalCode: '',
+      formattedAddress: '',
+      latitude: null,
+      longitude: null,
+    });
+    setSearchQuery('');
 
-        {/* Search predictions dropdown */}
-        {searchQuery.length > 0 && placePredictions.length > 0 && (
-          <div className="absolute z-10 mt-1 w-full bg-white shadow-lg border rounded-md py-1 max-h-60 overflow-auto">
-            {placePredictions.map((prediction) => (
-              <div
-                key={prediction.place_id}
-                className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center"
-                onClick={() => handlePlaceSelect(prediction.place_id)}
-              >
-                <MapPin className="h-4 w-4 mr-2 text-gray-500" />
-                <span>{prediction.description}</span>
-              </div>
-            ))}
-          </div>
-        )}
+    if (onLocationSelect) {
+      onLocationSelect({
+        placeId: undefined,
+        country: '',
+      });
+    }
+  };
+
+  const formValues = form.getValues();
+  const hasSelectedLocation = !!formValues.formattedAddress;
+
+  return (
+    <div className="space-y-4">
+      <div className="relative">
+        <LocationSearchInput
+          value={searchQuery}
+          onChange={setSearchQuery}
+          isLoading={isLoading}
+          placeholder="Search for a location..."
+          label="Location"
+        />
+
+        <LocationSuggestionsList
+          suggestions={suggestions}
+          onSelectSuggestion={handleSelectPlace}
+          onManualEntry={() => setShowManualEntry(true)}
+          isVisible={showSuggestions && searchQuery.length > 0}
+        />
       </div>
 
-      {/* Selected location display */}
-      {form.watch('formattedAddress') && (
-        <div className="mt-4 p-4 border rounded-md">
-          <div className="flex items-start justify-between">
-            <div>
-              {form.watch('name') && (
-                <h3 className="font-medium">{form.watch('name')}</h3>
-              )}
-              <p>{form.watch('formattedAddress')}</p>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              type="button"
-              onClick={() => {
-                form.reset({
-                  placeId: '',
-                  name: '',
-                  streetAddress: '',
-                  city: '',
-                  region: '',
-                  country: '',
-                  postalCode: '',
-                  latitude: null,
-                  longitude: null,
-                  isManuallyEntered: true,
-                  formattedAddress: '',
-                });
-                if (marker) {
-                  marker.setMap(null);
-                  setMarker(null);
-                }
-                if (mapInstance) {
-                  mapInstance.setCenter({ lat: 0, lng: 0 });
-                  mapInstance.setZoom(2);
-                }
-                if (onLocationSelect) {
-                  onLocationSelect(null as any);
-                }
-              }}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+      <div className="flex flex-col md:gap-4 w-full mt-4">
+        {hasSelectedLocation && (
+          <SelectedLocationDisplay
+            name={formValues.name}
+            formattedAddress={formValues.formattedAddress}
+            onClear={handleClearLocation}
+          />
+        )}
+
+        <div className="h-[200px]">
+          <LocationMap
+            latitude={formValues.latitude || undefined}
+            longitude={formValues.longitude || undefined}
+            googleMapsLoaded={googleMapsLoaded}
+            onLocationSelect={handleMapLocationSelect}
+            className="h-full w-full rounded-md border"
+          />
+        </div>
+      </div>
+
+      <Dialog open={showManualEntry} onOpenChange={setShowManualEntry}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>Enter Location Details</DialogTitle>
+          </DialogHeader>
+          <LocationManualEntryForm
+            onSubmit={handleManualEntrySubmit}
+            initialValues={formValues}
+            isLoading={isLoading}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {isError && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-sm">
+          There was an error loading location details. Please try again later or
+          enter location details manually.
         </div>
       )}
-
-      {/* Map preview */}
-      <div className="mt-4 h-60 w-full rounded-md overflow-hidden border">
-        {googleMapsError ? (
-          <div className="h-full w-full flex items-center justify-center bg-gray-100">
-            <p className="text-gray-500">Failed to load Google Maps</p>
-          </div>
-        ) : (
-          <div ref={mapContainerRef} className="h-full w-full bg-gray-100" />
-        )}
-      </div>
     </div>
   );
 }

@@ -99,6 +99,42 @@ export async function getPlaceDetails(
 /**
  * Parses address components from Google Places API
  */
+/**
+ * Reverse geocodes coordinates to get place details
+ */
+export async function reverseGeocode(
+  lat: number,
+  lng: number
+): Promise<PlaceDetails | null> {
+  if (!lat || !lng) return null;
+  if (!GOOGLE_MAPS_API_KEY) {
+    console.error('Google Maps API key not set');
+    return null;
+  }
+
+  try {
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_MAPS_API_KEY}`
+    );
+
+    if (!response.ok) {
+      throw new Error(`API responded with status: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (data.status !== 'OK' || !data.results || data.results.length === 0) {
+      console.error('Google Geocoding API error:', data.status);
+      return null;
+    }
+
+    return data.results[0];
+  } catch (error) {
+    console.error('Error reverse geocoding:', error);
+    return null;
+  }
+}
+
 export function parseAddressComponents(
   components: PlaceDetails['address_components']
 ) {
