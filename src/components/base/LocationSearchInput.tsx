@@ -21,7 +21,9 @@ export function LocationSearchInput({
 }: LocationSearchInputProps) {
   return (
     <div className="space-y-2">
-      <Label htmlFor="location-search">{label}</Label>
+      <Label className="sr-only" htmlFor="location-search">
+        {label}
+      </Label>
       <div className="relative">
         <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
           <MapPin className="h-4 w-4" />

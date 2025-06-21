@@ -34,7 +34,7 @@ interface PlacePrediction {
 }
 
 export interface Location extends LocationFormValues {
-  placeId?: string;
+  place_id?: string;
   formattedAddress?: string | null;
 }
 
@@ -58,7 +58,7 @@ export default function LocationPicker({
   const form = useForm<LocationFormValues>({
     resolver: zodResolver(locationSchema),
     defaultValues: initialLocation || {
-      placeId: undefined,
+      place_id: undefined,
       name: '',
       streetAddress: '',
       city: '',
@@ -138,7 +138,7 @@ export default function LocationPicker({
       if (data) {
         const place = data;
         const location = {
-          place_id: place.place_id,
+          placeId,
           name: place.name || null,
           streetAddress:
             place.address_components?.find((c: any) =>
