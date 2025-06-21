@@ -33,9 +33,11 @@ interface PlacePrediction {
   };
 }
 
-export interface Location extends LocationFormValues {
+export interface Location
+  extends Omit<LocationFormValues, 'isManuallyEntered'> {
   place_id?: string;
   formattedAddress?: string | null;
+  isManuallyEntered: boolean;
 }
 
 interface LocationPickerProps {
@@ -56,20 +58,28 @@ export default function LocationPicker({
   const [isError, setIsError] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(false);
 
+  const initialLocationWithDefaults: LocationFormValues = initialLocation
+    ? {
+        ...initialLocation,
+        isManuallyEntered: initialLocation.isManuallyEntered ?? false,
+      }
+    : {
+        placeId: undefined,
+        name: '',
+        streetAddress: '',
+        city: '',
+        region: '',
+        country: '',
+        postalCode: '',
+        formattedAddress: '',
+        latitude: null,
+        longitude: null,
+        isManuallyEntered: false,
+      };
+
   const form = useForm<LocationFormValues>({
     resolver: zodResolver(locationSchema),
-    defaultValues: initialLocation || {
-      place_id: undefined,
-      name: '',
-      streetAddress: '',
-      city: '',
-      region: '',
-      country: '',
-      postalCode: '',
-      formattedAddress: '',
-      latitude: null,
-      longitude: null,
-    },
+    defaultValues: initialLocationWithDefaults,
   });
 
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
@@ -164,6 +174,7 @@ export default function LocationPicker({
           formattedAddress: place.formatted_address || null,
           latitude: place.geometry?.location.lat || null,
           longitude: place.geometry?.location.lng || null,
+          isManuallyEntered: false,
         };
 
         form.reset(location);
@@ -197,6 +208,7 @@ export default function LocationPicker({
     const location: Location = {
       ...data,
       formattedAddress: formattedAddress || null,
+      isManuallyEntered: true,
     };
 
     form.reset(location);
@@ -251,6 +263,7 @@ export default function LocationPicker({
         formattedAddress: place.formatted_address || null,
         latitude: lat,
         longitude: lng,
+        isManuallyEntered: false,
       };
 
       form.reset(location);
@@ -280,6 +293,7 @@ export default function LocationPicker({
       formattedAddress: '',
       latitude: null,
       longitude: null,
+      isManuallyEntered: false,
     });
     setSearchQuery('');
 
@@ -287,6 +301,7 @@ export default function LocationPicker({
       onLocationSelect({
         placeId: undefined,
         country: '',
+        isManuallyEntered: false,
       });
     }
   };
@@ -314,7 +329,9 @@ export default function LocationPicker({
           suggestions={suggestions}
           onSelectSuggestion={handleSelectPlace}
           onManualEntry={() => setShowManualEntry(true)}
-          isVisible={showSuggestions && searchQuery.length > 0 && isInputFocused}
+          isVisible={
+            showSuggestions && searchQuery.length > 0 && isInputFocused
+          }
         />
       </div>
 

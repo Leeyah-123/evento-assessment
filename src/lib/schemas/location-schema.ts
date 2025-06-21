@@ -11,6 +11,7 @@ export const locationSchema = z.object({
   formattedAddress: z.string().optional().nullable(),
   latitude: z.number().optional().nullable(),
   longitude: z.number().optional().nullable(),
+  isManuallyEntered: z.boolean(),
 });
 
 export type LocationFormValues = z.infer<typeof locationSchema>;
