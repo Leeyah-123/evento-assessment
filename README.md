@@ -6,10 +6,12 @@ This is my submission for the Evento assessment.
 
 This application includes the following key features:
 
+- **Event Management**: Create and manage events with comprehensive details
 - **Location Selection**: Search for locations using Google Places autocomplete
 - **Interactive Map**: Click on any point on the map to select a location
 - **Manual Entry**: Manually enter location details when automatic options don't suffice
-- **Form Validation**: Complete validation with Zod to ensure location data integrity
+- **Form Validation**: Complete validation with Zod to ensure data integrity
+- **Database Integration**: PostgreSQL database storage with Prisma ORM
 - **Modern UI**: Built with TailwindCSS and shadcn/ui components
 
 ## Prerequisites
@@ -63,14 +65,25 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## Key Components
 
+### Event Management
+
+The application features a complete event management system:
+
+- **Event Creation Form**: Create events with title, description, dates, location, and additional details
+- **Database Integration**: Events are stored in PostgreSQL via Prisma ORM
+- **Event Details View**: After submission, view comprehensive details of the created event
+- **Form Validation**: Complete validation with Zod ensures data integrity
+- **Organizer Information**: Track event organizers with contact details
+
 ### Location Picker
 
-The main `LocationPicker` component provides a comprehensive interface for selecting locations:
+The `LocationPicker` component provides a comprehensive interface for selecting locations:
 
 - **Search Input**: Type to search for locations
 - **Suggestions List**: Shows autocomplete results from Google Places API
 - **Map View**: Interactive Google Map for visualization and selection
 - **Manual Entry Form**: Fallback for manually entering location details
+- **Reverse Geocoding**: Click on any point on the map to select a location
 
 ## Environment Variables
 
@@ -85,6 +98,64 @@ The main `LocationPicker` component provides a comprehensive interface for selec
 - **Places Not Working**: Ensure the Places API is enabled in your Google Cloud Console
 - **API Key Restrictions**: If you've restricted your API key, make sure to allow your development domain
 
+## Technical Implementation
+
+### Database Schema
+
+The application uses Prisma ORM with PostgreSQL to manage the data models:
+
+**Location Model**
+```prisma
+model Location {
+  id                String   @id @default(uuid())
+  placeId           String?  @unique
+  name              String?
+  streetAddress     String?
+  city              String?
+  region            String?
+  country           String
+  postalCode        String?
+  latitude          Float?
+  longitude         Float?
+  formattedAddress  String?
+  isManuallyEntered Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  events            Event[]
+}
+```
+
+**Event Model**
+```prisma
+model Event {
+  id            String    @id @default(uuid())
+  title         String
+  description   String?
+  startDate     DateTime
+  endDate       DateTime?
+  locationId    String
+  location      Location  @relation(fields: [locationId], references: [id])
+  organizerName String
+  organizerEmail String
+  maxAttendees  Int?
+  imageUrl      String?
+  price         Float?
+  tags          String[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+```
+
+### API Routes
+
+The application provides several API endpoints:
+
+- `POST /api/events`: Creates a new event
+- `GET /api/events`: Lists all events
+- `GET /api/places/search`: Searches for places using Google Places API
+- `GET /api/places/details`: Gets details for a specific place
+- `GET /api/places/geocode`: Performs reverse geocoding for map clicks
+
 ## Built With
 
 - [Next.js](https://nextjs.org/) - React framework
@@ -93,6 +164,8 @@ The main `LocationPicker` component provides a comprehensive interface for selec
 - [React Hook Form](https://react-hook-form.com/) - Form handling
 - [Zod](https://github.com/colinhacks/zod) - Schema validation
 - [Google Maps API](https://developers.google.com/maps) - Maps and location services
+- [Prisma](https://www.prisma.io/) - Database ORM
+- [PostgreSQL](https://www.postgresql.org/) - Database
 
 ## License
 
