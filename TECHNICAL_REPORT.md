@@ -47,9 +47,8 @@ LocationPicker
    - Real-time marker updates
 
    ```
-   <!-- VIDEO PLACEHOLDER -->
-   [Demo Video: Selecting a Location on the Map]
-   This video demonstrates selecting a location by clicking directly on the map.
+   [Demo Video: Selecting a Location on the Map](https://vimeo.com/1095273728)
+   This video demonstrates how to enter a location by clicking directly on the map.
    ```
 
 2. **Location Search with Autocomplete**
@@ -59,8 +58,7 @@ LocationPicker
    - Structured address formatting
 
    ```
-   <!-- VIDEO PLACEHOLDER -->
-   [Demo Video: Entering a Location and Selecting from Suggestions]
+   [Demo Video: Entering a Location and Selecting from Suggestions](https://vimeo.com/1095276527)
    This video demonstrates typing an address and selecting from the suggested options.
    ```
 
@@ -71,9 +69,8 @@ LocationPicker
    - Support for locations not found in Google Places
 
    ```
-   <!-- VIDEO PLACEHOLDER -->
-   [Demo Video: Entering a Location Manually]
-   This video demonstrates entering location details manually using the form.
+   [Demo Video: Entering a Location Manually](https://vimeo.com/1095272347)
+   This video demonstrates how to enter location details manually using the form.
    ```
 
 ## Event Management System
@@ -233,12 +230,12 @@ The application uses Prisma ORM to interact with a PostgreSQL database:
 
 ### Access Links
 
-- **Live Application**: [https://evento-assessment.vercel.com](https://evento-assessment.vercel.com)
+- **Live Application**: [https://evento-assessment.vercel.app](https://evento-assessment.vercel.app)
 - **GitHub Repository**: [https://github.com/Leeyah-123/evento-assessment](https://github.com/Leeyah-123/evento-assessment)
 
 **Appendix: Environment Setup Requirements**
 
-- Node.js 18+ and npm/yarn/pnpm
+- Node.js 18+ and pnpm
 - PostgreSQL database
 - Google Maps API key with:
   - Maps JavaScript API enabled
