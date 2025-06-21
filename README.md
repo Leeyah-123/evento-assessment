@@ -1,36 +1,99 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Evento Assessment Submission
 
-## Getting Started
+This is my submission for the Evento assessment.
 
-First, run the development server:
+## Project Overview
+
+This application includes the following key features:
+
+- **Location Selection**: Search for locations using Google Places autocomplete
+- **Interactive Map**: Click on any point on the map to select a location
+- **Manual Entry**: Manually enter location details when automatic options don't suffice
+- **Form Validation**: Complete validation with Zod to ensure location data integrity
+- **Modern UI**: Built with TailwindCSS and shadcn/ui components
+
+## Prerequisites
+
+- Node.js 16.x or later
+- npm, yarn, or pnpm
+- Google Cloud Platform account with Maps JavaScript API, Geography API and Places API (new and old) enabled
+
+## Required Google API Setup
+
+1. Visit the [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select an existing one
+3. Navigate to "APIs & Services" > "Library"
+4. Enable the following APIs:
+   - [Maps JavaScript API](https://console.cloud.google.com/apis/library/maps-backend.googleapis.com)
+   - [Places API](https://console.cloud.google.com/apis/library/places-backend.googleapis.com)
+   - [Geography API](https://console.cloud.google.com/apis/library/geography.googleapis.com)
+5. Go to "APIs & Services" > "Credentials"
+6. Create an API Key (restrict it to Maps JavaScript API, Geography API and Places API for security)
+7. Note down your API key for the next steps
+
+## Installation
+
+1. Clone the repository
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repository-url>
+cd evento-assessment
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm install
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+3. Create a `.env` file in the root directory with the following:
 
-## Learn More
+```
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_api_key_here
+DATABASE_URL=postgresql://username:password@localhost:5432/db_name
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Running the Development Server
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+pnpm dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the application.
 
-## Deploy on Vercel
+## Key Components
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Location Picker
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The main `LocationPicker` component provides a comprehensive interface for selecting locations:
+
+- **Search Input**: Type to search for locations
+- **Suggestions List**: Shows autocomplete results from Google Places API
+- **Map View**: Interactive Google Map for visualization and selection
+- **Manual Entry Form**: Fallback for manually entering location details
+
+## Environment Variables
+
+| Variable                        | Description              | Required |
+| ------------------------------- | ------------------------ | -------- |
+| NEXT_PUBLIC_GOOGLE_MAPS_API_KEY | Your Google Maps API key | Yes      |
+| DATABASE_URL                    | Your database URL        | Yes      |
+
+## Common Issues
+
+- **Map Not Loading**: Check that your API key is correctly set and has the required APIs enabled
+- **Places Not Working**: Ensure the Places API is enabled in your Google Cloud Console
+- **API Key Restrictions**: If you've restricted your API key, make sure to allow your development domain
+
+## Built With
+
+- [Next.js](https://nextjs.org/) - React framework
+- [TailwindCSS](https://tailwindcss.com/) - CSS framework
+- [shadcn/ui](https://ui.shadcn.com/) - UI component library
+- [React Hook Form](https://react-hook-form.com/) - Form handling
+- [Zod](https://github.com/colinhacks/zod) - Schema validation
+- [Google Maps API](https://developers.google.com/maps) - Maps and location services
+
+## License
+
+This project is licensed under the MIT License.
