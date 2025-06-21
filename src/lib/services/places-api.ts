@@ -20,8 +20,8 @@ export interface PlaceDetails {
   }[];
   geometry: {
     location: {
-      lat: () => number;
-      lng: () => number;
+      lat: number;
+      lng: number;
     };
   };
 }

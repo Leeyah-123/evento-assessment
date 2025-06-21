@@ -1,3 +1,5 @@
+'use client';
+
 import LocationPicker from '@/components/core/LocationPicker';
 
 export default function Home() {
@@ -5,7 +7,11 @@ export default function Home() {
     <main className="min-h-dvh grid place-items-center">
       <div className="p-4">
         <h1 className="text-2xl font-bold text-center">Location Picker</h1>
-        <LocationPicker />
+        <LocationPicker
+          onLocationSelect={(location) => {
+            console.log(location);
+          }}
+        />
       </div>
     </main>
   );

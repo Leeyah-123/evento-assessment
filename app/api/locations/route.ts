@@ -19,8 +19,8 @@ const manualLocationSchema = z.object({
   region: z.string().optional(),
   country: z.string().min(1, 'Country is required'),
   postalCode: z.string().optional(),
-  latitude: z.number().optional(),
-  longitude: z.number().optional(),
+  latitude: z.number().optional().nullable(),
+  longitude: z.number().optional().nullable(),
 });
 
 export async function GET(request: NextRequest) {
@@ -97,8 +97,8 @@ export async function POST(request: NextRequest) {
           region: addressComponents.region,
           country: addressComponents.country || 'Unknown',
           postalCode: addressComponents.postalCode,
-          latitude: placeDetails.geometry.location.lat(),
-          longitude: placeDetails.geometry.location.lng(),
+          latitude: placeDetails.geometry.location.lat,
+          longitude: placeDetails.geometry.location.lng,
           formattedAddress: placeDetails.formatted_address,
           isManuallyEntered: false,
         },

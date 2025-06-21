@@ -16,30 +16,34 @@ datasource db {
 
 model Location {
   id                String   @id @default(uuid())
-  placeId           String?  @unique
+  placeId           String?  @unique @map("place_id")
   name              String?
-  streetAddress     String?
+  streetAddress     String?  @map("street_address")
   city              String?
   region            String?
   country           String
-  postalCode        String?
+  postalCode        String?  @map("postal_code")
   latitude          Float?
   longitude         Float?
-  formattedAddress  String?
-  isManuallyEntered Boolean  @default(false)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  formattedAddress  String?  @map("formatted_address")
+  isManuallyEntered Boolean  @default(false) @map("is_manually_entered")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
   events            Event[]
+
+  @@map("locations")
 }
 
 model Event {
   id          String    @id @default(uuid())
   title       String
   description String?
-  startDate   DateTime
-  endDate     DateTime?
-  locationId  String
+  startDate   DateTime  @map("start_date")
+  endDate     DateTime? @map("end_date")
+  locationId  String    @map("location_id")
   location    Location  @relation(fields: [locationId], references: [id])
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("events")
 }
