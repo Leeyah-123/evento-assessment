@@ -46,10 +46,7 @@ LocationPicker
    - Reverse geocoding to obtain address details
    - Real-time marker updates
 
-   ```
    [Demo Video: Selecting a Location on the Map](https://vimeo.com/1095273728)
-   This video demonstrates how to enter a location by clicking directly on the map.
-   ```
 
 2. **Location Search with Autocomplete**
 
@@ -57,10 +54,7 @@ LocationPicker
    - Type-ahead suggestions with debounced queries
    - Structured address formatting
 
-   ```
    [Demo Video: Entering a Location and Selecting from Suggestions](https://vimeo.com/1095276527)
-   This video demonstrates typing an address and selecting from the suggested options.
-   ```
 
 3. **Manual Location Entry**
 
@@ -68,10 +62,7 @@ LocationPicker
    - Field validation with Zod schema
    - Support for locations not found in Google Places
 
-   ```
    [Demo Video: Entering a Location Manually](https://vimeo.com/1095272347)
-   This video demonstrates how to enter location details manually using the form.
-   ```
 
 ## Event Management System
 
