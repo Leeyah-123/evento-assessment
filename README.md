@@ -38,7 +38,7 @@ This application includes the following key features:
 1. Clone the repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/Leeyah-123/evento-assessment.git
 cd evento-assessment
 ```
 
