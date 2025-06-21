@@ -54,6 +54,7 @@ export default function LocationPicker({
   const [googleMapsLoaded, setGoogleMapsLoaded] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [isError, setIsError] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
 
   const form = useForm<LocationFormValues>({
     resolver: zodResolver(locationSchema),
@@ -302,13 +303,18 @@ export default function LocationPicker({
           isLoading={isLoading}
           placeholder="Search for a location..."
           label="Location"
+          onFocus={() => setIsInputFocused(true)}
+          onBlur={() => {
+            // Use setTimeout to allow click events on suggestions to fire before hiding
+            setTimeout(() => setIsInputFocused(false), 150);
+          }}
         />
 
         <LocationSuggestionsList
           suggestions={suggestions}
           onSelectSuggestion={handleSelectPlace}
           onManualEntry={() => setShowManualEntry(true)}
-          isVisible={showSuggestions && searchQuery.length > 0}
+          isVisible={showSuggestions && searchQuery.length > 0 && isInputFocused}
         />
       </div>
 

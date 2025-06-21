@@ -10,6 +10,8 @@ interface LocationSearchInputProps {
   isLoading: boolean;
   placeholder?: string;
   label?: string;
+  onFocus?: () => void;
+  onBlur?: () => void;
 }
 
 export function LocationSearchInput({
@@ -18,6 +20,8 @@ export function LocationSearchInput({
   isLoading,
   placeholder = 'Search for a location...',
   label = 'Location',
+  onFocus,
+  onBlur,
 }: LocationSearchInputProps) {
   return (
     <div className="space-y-2">
@@ -33,6 +37,8 @@ export function LocationSearchInput({
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onFocus={() => onFocus && onFocus()}
+          onBlur={() => onBlur && onBlur()}
           className="pl-9 pr-8 w-full"
           autoComplete="off"
         />
